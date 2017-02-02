@@ -6,6 +6,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.charset.Charset;
 import java.util.Objects;
@@ -27,19 +28,27 @@ public class EchoUDPClient {
 		
 		//SEND
 		ByteBuffer bbOut = charset.encode(msg);
-		DatagramChannel dc_out = DatagramChannel.open();
-		dc_out.bind(null);
+		DatagramChannel dc = DatagramChannel.open();
+		dc.bind(null);
 		SocketAddress dest = new InetSocketAddress(dest_str, port);
-		dc_out.send(bbOut, dest);
+		
+		System.out.println("socket locale attachée à l'adresse : " + dc.getLocalAddress());
+		System.out.println(bbOut.remaining() + " octets émis vers " + dest);
+		System.out.println("capacité de la zone de stockage : "+ bbOut.capacity());
+		
+		dc.send(bbOut, dest);
 		
 		//RECEIVE
-		DatagramChannel dc_in = DatagramChannel.open();
-		dc_in.bind(null);
 		ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_SIZE);
-		SocketAddress exp = dc_in.receive(bbIn);
+		System.out.println(bbIn.remaining() + " octets reçus");
+		
+		SocketAddress exp = dc.receive(bbIn);
 		bbIn.flip();
-		String msg_receive = charset.decode(bbIn).toString();
-		System.out.println("receive " + msg_receive + "from "+ exp);
+		final CharBuffer msg_receive = charset.decode(bbIn);
+		
+		System.out.println("contenant : "+ msg_receive);
+		System.out.println("provenant : "+ exp);
+		
 		
 	}
 	
