@@ -1,3 +1,0 @@
-0.0.0.0 wildcard recevoir de n'importe qui
-
-dc.bind(new InetSocketAddress(7777)); => s'associe a une socketaddress local 	

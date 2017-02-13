@@ -1,4 +1,4 @@
-package ex3;
+package tp2.ex3;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -32,19 +32,24 @@ public class ClientBetterUpperCaseUDP {
 	 */
     public static CharBuffer decodeMessage(ByteBuffer buffer) {
     	buffer.flip();
+    	if(buffer.remaining() < 4){
+    		throw new IllegalArgumentException("Invalid packet - packet remaining < 4");
+    	}
     	int charsetSize = buffer.getInt();
-    	ByteBuffer bbCharsetName = ByteBuffer.allocate(charsetSize);
-    	for(int i = 0; i < charsetSize; i++){
-    		bbCharsetName.put(buffer.get());
+    	if(charsetSize > buffer.remaining()){
+    		throw new IllegalArgumentException("Invalid packet - charsetSize > buffers remaining");
     	}
-    	bbCharsetName.flip();
-    	CharBuffer charsetName_str = ASCII_CHARSET.decode(bbCharsetName);
-    	ByteBuffer bbMsg = ByteBuffer.allocate(1024);
-    	while(buffer.hasRemaining()){
-    		bbMsg.put(buffer.get());
-    	}
-    	bbMsg.flip();
-    	return Charset.forName(charsetName_str.toString()).decode(bbMsg);
+    	
+    	int oldLimit = buffer.limit();
+    	buffer.limit(buffer.position() + charsetSize);
+    	byte[] arr = new byte[buffer.remaining()];
+    	buffer.get(arr);
+    	ByteBuffer charsetName = ByteBuffer.wrap(arr);
+    	CharBuffer charsetName_str = ASCII_CHARSET.decode(charsetName);
+    	
+    	buffer.limit(oldLimit);
+    	
+    	return Charset.forName(charsetName_str.toString()).decode(buffer);
     }
 
     /**
