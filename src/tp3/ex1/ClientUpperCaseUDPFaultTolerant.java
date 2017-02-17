@@ -57,20 +57,22 @@ public class ClientUpperCaseUDPFaultTolerant {
 		while(sc.hasNextLine()){
 			//SEND
 			String input = sc.nextLine();
-			ByteBuffer bbOut = charset.encode(input);
-			System.out.println(input+ " sended to " + dest);
-			dc.send(bbOut, dest);
-			try {
-				CharBuffer msg = queue.poll(1, TimeUnit.SECONDS);
-				if(msg != null && !msg.equals("")){
-					System.out.println("Packet received : "+msg);
-				}else{
-					System.out.println("Server didnt respond");
+			CharBuffer msg = null;
+			while(msg == null){
+				ByteBuffer bbOut = charset.encode(input);
+				System.out.println(input+ " sended to " + dest);
+				dc.send(bbOut, dest);
+				try {
+					msg = queue.poll(1, TimeUnit.SECONDS);
+					if(msg == null){
+						System.out.println("Server didnt respond, packet sended again");
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
 			}
+			System.out.println("Packet received : "+msg);
 		}
 
 		

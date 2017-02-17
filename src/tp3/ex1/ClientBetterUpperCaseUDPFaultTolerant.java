@@ -1,4 +1,4 @@
-package tp2.ex3;
+package tp3.ex1;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -8,16 +8,19 @@ import java.nio.ByteOrder;
 import java.nio.CharBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.charset.Charset;
-import java.util.Optional;
 import java.util.Scanner;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by carayol on 02/03/14.
  */
-public class ClientBetterUpperCaseUDP {
+public class ClientBetterUpperCaseUDPFaultTolerant {
 
 	public static Charset ASCII_CHARSET = Charset.forName("US-ASCII");
 	public static int BUFFER_SIZE = 1024;
+	public static BlockingQueue<CharBuffer> queue = new ArrayBlockingQueue<>(BUFFER_SIZE);
 	
 	/**
      * Create and return a String message represented by the ByteBuffer buffer 
@@ -31,26 +34,26 @@ public class ClientBetterUpperCaseUDP {
 	 * @param buffer a ByteBuffer containing the representation of a message
 	 * @return the String represented by bb
 	 */
-    //Decode packet
-    public static Optional<String> decodePacket(ByteBuffer bb){
-    	bb.flip();//change mode to read it
-    	if(bb.remaining() < Integer.BYTES){//i.e there is no charset
-    		return Optional.empty();
+    public static CharBuffer decodeMessage(ByteBuffer buffer) {
+    	buffer.flip();
+    	if(buffer.remaining() < 4){
+    		throw new IllegalArgumentException("Invalid packet - packet remaining < 4");
     	}
-    	int csNameSize = bb.getInt();
-    	if(csNameSize <= 0 || (csNameSize + Integer.BYTES > bb.limit())){ // invalid packet format or invalid charset
-    		return Optional.empty();
+    	int charsetSize = buffer.getInt();
+    	if(charsetSize > buffer.remaining()){
+    		throw new IllegalArgumentException("Invalid packet - charsetSize > buffers remaining");
     	}
-    	int oldLimit = bb.limit();
-    	bb.limit(Integer.BYTES + csNameSize);
-    	String csName = ASCII_CHARSET.decode(bb).toString();
-    	try{
-    		Charset cs = Charset.forName(csName);
-    		bb.limit(oldLimit);
-    		return Optional.of(cs.decode(bb).toString());
-    	} catch(IllegalArgumentException e){
-    		return Optional.empty();
-    	}
+    	
+    	int oldLimit = buffer.limit();
+    	buffer.limit(buffer.position() + charsetSize);
+    	byte[] arr = new byte[buffer.remaining()];
+    	buffer.get(arr);
+    	ByteBuffer charsetName = ByteBuffer.wrap(arr);
+    	CharBuffer charsetName_str = ASCII_CHARSET.decode(charsetName);
+    	
+    	buffer.limit(oldLimit);
+    	
+    	return Charset.forName(charsetName_str.toString()).decode(buffer);
     }
 
     /**
@@ -66,14 +69,10 @@ public class ClientBetterUpperCaseUDP {
      * @return a newly allocated ByteBuffer containing the representation of msg
      */
     private static ByteBuffer encodeMessage(String msg, String charsetName) {
-    	Charset cs = Charset.forName(charsetName);
-    	ByteBuffer bbCSName = ASCII_CHARSET.encode(charsetName);
-    	ByteBuffer bbMsg = cs.encode(msg);
-    	ByteBuffer bbReturned = ByteBuffer.allocate(Integer.BYTES + bbCSName.remaining() + bbMsg.remaining());
-    	bbReturned.putInt(bbCSName.remaining());
-    	bbReturned.put(bbCSName);
-    	bbReturned.put(bbMsg);
-    	return bbReturned;
+      ByteBuffer bbCharsetName = ASCII_CHARSET.encode(charsetName).order(ByteOrder.BIG_ENDIAN);
+      ByteBuffer bbMsg = Charset.forName(charsetName).encode(msg);
+      
+      return ByteBuffer.allocate(BUFFER_SIZE).putInt(charsetName.length()).put(bbCharsetName).put(bbMsg);
   }
 
     public static void usage() {
@@ -96,24 +95,48 @@ public class ClientBetterUpperCaseUDP {
         
         // prepare input and receive buffer
         Scanner scan = new Scanner(System.in);
-        ByteBuffer buff = ByteBuffer.allocateDirect(BUFFER_SIZE);
+        
+		Runnable responseListener = ()->{
+			//RECEIVE
+			ByteBuffer buff = ByteBuffer.allocateDirect(BUFFER_SIZE);
+			try {
+				while(true){
+					dc.receive(buff);
+					CharBuffer msg_receive = decodeMessage(buff);
+					queue.put(msg_receive);
+					buff.clear();
+				}
+			} catch (IOException | InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+		};
+		
+		Thread listener = new Thread(responseListener);
+		listener.start();
         
         while (scan.hasNextLine()) {
             String line = scan.nextLine();
-            ByteBuffer packet = encodeMessage(line, charsetName);
-            packet.flip();
-            dc.send(packet, dest);
-            buff.clear();
-            dc.receive(buff);
-            if(decodePacket(buff).isPresent()){
-            	System.out.println(decodePacket(buff).get());
+            CharBuffer msg = null;
+            while(msg == null){
+	            ByteBuffer packet = encodeMessage(line, charsetName);
+	            packet.flip();
+	            dc.send(packet, dest);
+	            System.out.println("Packet sended to server : "+line);
+	            try {
+					msg = queue.poll(1, TimeUnit.SECONDS);
+					if(msg == null){
+						System.out.println("Server didnt respond, packet sended again");
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
             }
-            
+            System.out.println("Packet received : "+msg);
         }
         scan.close();
         dc.close();
     }
-    
-
 
 }
