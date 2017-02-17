@@ -22,7 +22,7 @@ public class Main {
 	private static List<String> receivingLines = new ArrayList();
 	private static final String file = "/home/amine/workspace/javanetworktp/src/text.txt";
 	private static final int BUFFER_SIZE = 1024;
-	public static void main(String[] args) throws IOException{
+	public static void main(String[] args) throws IOException, InterruptedException{
 		if(args != null && args.length != 3){
 			throw new IllegalArgumentException("Invalid arguments");
 		}
@@ -73,6 +73,7 @@ public class Main {
 					bbOut = charset.encode(input);
 					System.out.println(input+ " sended to " + dest);
 					dc.send(bbOut, dest);
+					Thread.sleep(1000);
 				}else{
 					System.out.println("packet already in receiving list");
 				}

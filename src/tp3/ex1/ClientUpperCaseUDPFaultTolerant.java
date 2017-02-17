@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
 public class ClientUpperCaseUDPFaultTolerant {
 	
 	public static final int BUFFER_SIZE = 1024;
-	public static BlockingQueue<CharBuffer> queue = new ArrayBlockingQueue<>(BUFFER_SIZE);
+	public static final BlockingQueue<String> queue = new ArrayBlockingQueue<>(BUFFER_SIZE);
 	public static void main(String args[]) throws IOException{
 		if(args != null && args.length != 3){
 			throw new IllegalArgumentException("Invalid arguments");
@@ -42,7 +42,8 @@ public class ClientUpperCaseUDPFaultTolerant {
 					dc.receive(bbIn);
 					bbIn.flip();
 					CharBuffer msg_receive = charset.decode(bbIn);
-					queue.put(msg_receive);
+					System.out.println(msg_receive.toString() + " added to the queue");
+					queue.put(msg_receive.toString());
 					bbIn.clear();
 				}
 			} catch (IOException | InterruptedException e) {
@@ -54,21 +55,28 @@ public class ClientUpperCaseUDPFaultTolerant {
 		Thread listener = new Thread(responseListener);
 		listener.start();
 		
+		ByteBuffer bbOut;
 		while(sc.hasNextLine()){
 			//SEND
 			String input = sc.nextLine();
-			CharBuffer msg = null;
-			while(msg == null){
-				ByteBuffer bbOut = charset.encode(input);
-				System.out.println(input+ " sended to " + dest);
-				dc.send(bbOut, dest);
+			bbOut = charset.encode(input);
+			dc.send(bbOut, dest);
+			System.out.println(input+ " sended to " + dest);
+			String msg = null;
+			while(msg == null || (msg != null && !msg.equals(""))){	
 				try {
 					msg = queue.poll(1, TimeUnit.SECONDS);
-					if(msg == null){
-						System.out.println("Server didnt respond, packet sended again");
+					if(msg != null){
+						break;
+					}else {
+						System.out.println("retry to send packet");
+						bbOut.clear();
+						bbOut = charset.encode(input);
+						dc.send(bbOut, dest);
+						System.out.println(input+ " sended to " + dest);
 					}
+					
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}
