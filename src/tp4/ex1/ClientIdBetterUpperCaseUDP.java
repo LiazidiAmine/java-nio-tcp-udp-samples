@@ -87,7 +87,7 @@ public class ClientIdBetterUpperCaseUDP {
         requester.open();
         
         List<String> linesUpperCase=requester.toUpperCase(lines,Charset.forName(args[0]));
-        
+        System.out.println("[CLIENT] requester.toUpperCase() finished");
         
         
         requester.close();

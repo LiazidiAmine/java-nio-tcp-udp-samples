@@ -38,23 +38,37 @@ public abstract class Requester {
 	 * @return the String represented by bb
 	 */
     public static Optional<String> decodeString(ByteBuffer bb) {
-    	bb.flip();
-    	if(bb.remaining() < Integer.BYTES || bb.remaining() < (Integer.BYTES + Long.BYTES)){
+    	
+    	if(bb.remaining() < Integer.BYTES){
+    		System.out.println("[DECODE] bb.remaining() < Integer.BYTES");
     		return Optional.empty();
     	}
-    	long uuid = bb.getLong();
-    	int csNameSize = bb.getInt();
-    	if(csNameSize <= 0 || (csNameSize + Integer.BYTES + Long.BYTES >= bb.limit())){ 
-    		return Optional.empty();
-    	}
+
     	int oldLimit = bb.limit();
+    	int csNameSize = bb.getInt();
+    	System.out.println("[DECODE] csNameSize = bb.getInt() = "+csNameSize +"   ");
+    	if(csNameSize <= 0 ){
+    		System.out.println("[DECODE] csNameSize <= 0");
+    		return Optional.empty();
+    	}
+    	if(csNameSize + Integer.BYTES >= oldLimit){
+    		System.out.println("[DECODE] oldLimit = " + oldLimit);
+    		System.out.println("[DECODE] csNameSize + Integer.BYTES = " + csNameSize + Integer.BYTES);
+    		System.out.println("[DECODE] (csNameSize + Integer.BYTES >= bb.limit())");
+    		return Optional.empty();
+    	}
+
     	bb.limit(Integer.BYTES + csNameSize + Long.BYTES);
+    	System.out.println("[DECODE] ByteBuffer.limit() : "+bb.limit());
+    	System.out.println("[DECODE] Remaining : "+bb.remaining());
     	String csName = ASCII_CHARSET.decode(bb).toString();
+    	System.out.println("[DECODE] CharsetName decoded : "+csName);
     	try{
     		Charset cs = Charset.forName(csName);
     		bb.limit(oldLimit);
     		return Optional.of(cs.decode(bb).toString());
     	} catch(IllegalArgumentException e){
+    		System.out.println("[DECODE] "+e.getMessage());
     		return Optional.empty();
     	}
     }
@@ -79,17 +93,20 @@ public abstract class Requester {
     	String msgUpperCase = msg.toUpperCase();
     	ByteBuffer bbMsg = cs.encode(msgUpperCase);
     	ByteBuffer bbReturned = ByteBuffer.allocate(Long.BYTES + Integer.BYTES + bbCSName.remaining() + bbMsg.remaining());
+    	int bbCSNameRemaining = bbCSName.remaining();
+    	int bbMsgRemaining = bbMsg.remaining();
     	System.out.println("[Requester] Buffer allocated : "+
     			(Long.BYTES + Integer.BYTES + bbCSName.remaining() + bbMsg.remaining()) + " For value : "+msg);
     	System.out.println("[Requester] Long.BYTES : "+Long.BYTES);
     	System.out.println("[Requester] Integer.BYTES : "+Integer.BYTES);
-    	System.out.println("[Requester] bbCSName.remaining() : "+bbCSName.remaining());
-    	System.out.println("[Requester] bbMsg.remaining() : "+bbMsg.remaining());
+    	System.out.println("[Requester] bbCSName.remaining() : "+bbCSNameRemaining);
+    	System.out.println("[Requester] bbMsg.remaining() : "+bbMsgRemaining);
     	bbReturned.putLong(requestNumber);
-    	bbReturned.putInt(bbCSName.remaining());
+    	bbReturned.putInt(bbCSNameRemaining);
     	bbReturned.put(bbCSName);
     	bbReturned.put(bbMsg);
     	System.out.println("[Requester] Packet created for Value : "+msg+ " with Charset : "+cs.displayName());
+    	System.out.println("[Requester] Limit "+bbReturned.limit());
     	return bbReturned;
     }
 

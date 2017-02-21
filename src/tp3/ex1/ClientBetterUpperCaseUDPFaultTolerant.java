@@ -78,6 +78,7 @@ public class ClientBetterUpperCaseUDPFaultTolerant {
     	bbReturned.putInt(bbCSName.remaining());
     	bbReturned.put(bbCSName);
     	bbReturned.put(bbMsg);
+    	System.out.println("LIMIT "+bbReturned.limit());
     	return bbReturned;
   }
 

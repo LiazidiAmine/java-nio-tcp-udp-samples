@@ -32,7 +32,7 @@ public class OneByOneRequester extends Requester {
 				bbIn.clear();
 				System.out.println("[OneByOne][LISTENER] Preparing to receive...");
 				receive(bbIn);
-				bbIn.flip();
+
 				System.out.println("[OneByOne][LISTENER] Check remaining received packet...");
 				if(bbIn.remaining() > 0){
 					System.out.println("[OneByOne][LISTENER] Trying to add packet..");
@@ -83,30 +83,33 @@ public class OneByOneRequester extends Requester {
 		while(!Thread.interrupted()){
 			long currentTime = System.currentTimeMillis();
 			long elapsedTime = currentTime - lastSend;
+			
 			if(elapsedTime < TIMEOUT){
-				System.out.println("[OneByOne] Elapsed timeOut");
 				System.out.println("[OneByOne] Trying to poll..");
 				ByteBuffer answer = queue.poll(elapsedTime,TimeUnit.MILLISECONDS);
+				
 				if(answer == null){
 					System.out.println("[OneByOne] [ERROR] answer == null");
 					continue;
 				}
-				answer.flip();
 				System.out.println("[OneByOne] Packet received remaining : "+answer.remaining());
 				if((answer.remaining() < Long.BYTES) || (answer.getLong() != i)){
 					if(answer.remaining() < Long.BYTES){
-						System.out.println("[OneByOne] [ERROR] answer.getLong != i");
+						System.out.println("[OneByOne] [ERROR] answer.getLong != i"+ answer.getLong());
+						System.out.println("[OneByOne] getLong, then check remaining : "+answer.remaining());
 					}
 					continue;
 				}
-				System.out.println("[OneByOne] answer's ID is ok. Answer : "+answer.getLong() + " \\ ID : "+i);
+				System.out.println("[OneByOne] answer's ID is ok.");
+				answer.flip();
 				answer.compact();
 				Optional<String> opt = decodeString(answer);
+				System.out.println(opt);
 				if(!opt.isPresent()){
 					System.out.println("[OneByOne] [ERROR] Optional.isPresent() == False");
 					continue;
 				}
-				System.out.println(opt.get());
+				System.out.println("[OneByOne][opt.get()] opt.get()");
 				return opt.get();
 			} else{
 				send(buffsend);
