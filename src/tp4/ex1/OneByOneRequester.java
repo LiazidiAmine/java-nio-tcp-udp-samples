@@ -19,33 +19,33 @@ import java.util.concurrent.TimeUnit;
 public class OneByOneRequester extends Requester {
 
 
-	private static final int BUFFER_SIZE = 4096;
-	private static final int TIMEOUT = 500;
+	private static final int BUFFER_SIZE = 1024;
+	private static final int TIMEOUT = 300;
 
 	private final BlockingQueue<ByteBuffer> queue = new ArrayBlockingQueue<ByteBuffer>(1);
 	
 	private final Thread listener = new Thread(() -> {
 		ByteBuffer bbIn = ByteBuffer.allocate(BUFFER_SIZE);
 		System.out.println("[OneByOne][LISTENER] ByteBuffer allocated - START LISTENER");
-		try {
-			while(!Thread.interrupted()){
-				bbIn.clear();
+		while(!Thread.interrupted()){
+			try {
 				System.out.println("[OneByOne][LISTENER] Preparing to receive...");
+				bbIn.clear();
 				receive(bbIn);
-
-				System.out.println("[OneByOne][LISTENER] Check remaining received packet...");
-				if(bbIn.remaining() > 0){
-					System.out.println("[OneByOne][LISTENER] Trying to add packet..");
-					queue.add(bbIn);
-					System.out.println("[OneByOne][LISTENER] ByteBuffer added : Remaining packet : "+bbIn.remaining());
-				}else{
-					System.out.println("[OneByOne][LISTENER] Packet with no remaining received");
-				}
+				bbIn.flip();
+				ByteBuffer toSend = ByteBuffer.allocate(bbIn.remaining());
+				toSend.put(bbIn);
+				System.out.println("AFTER RECEIVING AFTER RECEIVING AFTER RECEIVING AFTER RECEIVING");
+				System.out.println("[OneByOne][LISTENER] receiving packet with remaining = "+bbIn.remaining());
+				toSend.flip();
+				queue.add(toSend);
+				System.out.println("[OneByOne] Queue size : "+queue.size());
+				
+			} catch (Exception e) {
+				e.printStackTrace();
 			}
-
-		} catch (Exception e) {
-			e.printStackTrace();
 		}
+		
 	});
 
 	public OneByOneRequester(InetSocketAddress serverAddress) {
@@ -69,16 +69,17 @@ public class OneByOneRequester extends Requester {
 				linesUpperCase.add(packetUpperCase);
 			}
 		}
+		listener.interrupt();
 		return linesUpperCase;
 	}
 
 	private String toUpperCase(long i, String string, Charset cs) throws IOException, InterruptedException {
 		ByteBuffer buffsend = createPacket(i, string, cs);
 		buffsend.flip();
-		System.out.println("[OneByOne] Packed remaining : "+buffsend.remaining());
+		System.out.println("[OneByOne] Packet remaining : "+buffsend.remaining());
 		send(buffsend);
 		System.out.println("[OneByOne] String sended : "+ string +" |=> elapsedTimeOut < TIMEOUT |=> queue.poll() ");
-		buffsend.flip();
+		
 		long lastSend = System.currentTimeMillis();
 		while(!Thread.interrupted()){
 			long currentTime = System.currentTimeMillis();
@@ -86,6 +87,7 @@ public class OneByOneRequester extends Requester {
 			
 			if(elapsedTime < TIMEOUT){
 				System.out.println("[OneByOne] Trying to poll..");
+				
 				ByteBuffer answer = queue.poll(elapsedTime,TimeUnit.MILLISECONDS);
 				
 				if(answer == null){
@@ -93,7 +95,7 @@ public class OneByOneRequester extends Requester {
 					continue;
 				}
 				System.out.println("[OneByOne] Packet received remaining : "+answer.remaining());
-				if((answer.remaining() < Long.BYTES) || (answer.getLong() != i)){
+				if((answer.getLong() != i)){
 					if(answer.remaining() < Long.BYTES){
 						System.out.println("[OneByOne] [ERROR] answer.getLong != i"+ answer.getLong());
 						System.out.println("[OneByOne] getLong, then check remaining : "+answer.remaining());
@@ -104,12 +106,11 @@ public class OneByOneRequester extends Requester {
 				answer.flip();
 				answer.compact();
 				Optional<String> opt = decodeString(answer);
-				System.out.println(opt);
 				if(!opt.isPresent()){
 					System.out.println("[OneByOne] [ERROR] Optional.isPresent() == False");
 					continue;
 				}
-				System.out.println("[OneByOne][opt.get()] opt.get()");
+				System.out.println("[OneByOne][opt.get()] = "+ opt.get());
 				return opt.get();
 			} else{
 				send(buffsend);

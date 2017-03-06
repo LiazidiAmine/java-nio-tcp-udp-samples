@@ -116,8 +116,9 @@ public abstract class Requester {
     }
 
     protected void receive(ByteBuffer buff) throws IOException {
+    	System.out.println("[Requester][RECEIVER] trying to receive");
         dc.receive(buff);
-        System.out.println("[Requester] buffer received");
+        System.out.println("[Requester][RECEIVER] buffer received");
     }
 
     public void open() throws IOException {
