@@ -68,8 +68,8 @@ public class ClientEOS {
     }
 
     public static void main(String[] args) throws IOException {
-        System.out.println(getFixedSizeResponse("GET / HTTP/1.1\r\nHost: www.google.fr\r\n\r\n", 
-            new InetSocketAddress("www.google.fr", 80), 1024));
+        /*System.out.println(getFixedSizeResponse("GET / HTTP/1.1\r\nHost: www.google.fr\r\n\r\n", 
+            new InetSocketAddress("www.google.fr", 80), 1024));*/
          
          System.out.println(getUnboundedResponse("GET / HTTP/1.1\r\nHost: www.google.fr\r\n\r\n", 
               new InetSocketAddress("www.google.fr", 80)));
