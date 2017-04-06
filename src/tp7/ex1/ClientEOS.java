@@ -55,6 +55,7 @@ public class ClientEOS {
     	responseBuff.flip();
     	total.put(responseBuff);
     	total.flip();
+    	sc.close();
     	return UTF8_CHARSET.decode(total).toString();
     }
     
